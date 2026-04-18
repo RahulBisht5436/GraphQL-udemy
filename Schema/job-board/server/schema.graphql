@@ -9,8 +9,16 @@ type Job {
     id:ID!
     title:String!
     description:String
+    """ this is string date refrence """
     date:String!
     createdAt:String!
+    company: Company
 
 
+}
+
+type Company {
+    id:ID!
+    name : String!
+    description:String
 }
