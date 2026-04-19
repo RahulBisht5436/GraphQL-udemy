@@ -12,6 +12,7 @@ export async function getJob(id) {
 }
 
 export async function createJob({ companyId, title, description }) {
+  console.log("right function executed",companyId , description ,title)
   const job = {
     id: generateId(),
     companyId,

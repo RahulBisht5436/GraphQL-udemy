@@ -5,7 +5,14 @@ type Query{
     Company(id:ID!):Company
 }
 
-
+""" Root fields that change server-side data (writes). """
+type Mutation {
+    """
+    Insert a new job. `companyId` must match an existing company row (foreign key in SQLite).
+    Returns the saved `Job` so clients can query `id`, `title`, nested `company`, etc.
+    """
+    createJob(title: String!, description: String, companyId: ID!): Job
+}
 type Job {
     id:ID!
     title:String!
@@ -14,7 +21,6 @@ type Job {
     date:String!
     createdAt:String!
     company: Company
-
 
 }
 

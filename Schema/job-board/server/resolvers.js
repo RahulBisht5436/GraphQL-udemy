@@ -3,16 +3,19 @@
  *
  * Structure:
  * - Query     — root entry points: greetings, Job, Jobs, Company
+ * - Mutation  — createJob (insert job; companyId must reference an existing company row)
  * - Job       — field resolvers on Job objects (date, company)
  * - Company   — field resolver Jobs on Company (jobs for that company)
  *
- * DB access: ./db/jobs.js (getJobs, getJob), ./db/companies.js (getCompany).
+ * DB access: ./db/jobs.js (getJobs, getJob, createJob), ./db/companies.js (getCompany).
  */
-import { getJobs, getJob } from './db/jobs.js'
+import { getJobs, getJob, createJob } from './db/jobs.js'
 import { getCompany } from './db/companies.js'
+/** Typed errors with `extensions.code` for missing/invalid Company lookups. */
 import { GraphQLError } from 'graphql';
 
 const resolvers = {
+    /** Root read operations (see schema `type Query`). */
     Query: {
         /** Smoke-test string; not backed by the database. */
         greetings: () => {
@@ -23,11 +26,12 @@ const resolvers = {
          * Schema: Job(id: ID): Job
          * Loads a single job row; spreads DB fields onto the GraphQL Job type.
          */
-        Job: async (parent, args) => {
+        Job: async (_parent, args) => {
             if (!args.id) {
                 throw new Error("Job id is required");
             }
             const jobsData = await getJob(args.id)
+            // Spread so GraphQL can resolve nested fields (e.g. `company`) on the returned Job.
             return {
                 ...jobsData
             }
@@ -36,17 +40,16 @@ const resolvers = {
         /** Schema: Jobs: [Job] — all jobs, no filter. */
         Jobs: async () => {
             const jobsData = await getJobs();
-            return [
-                ...jobsData,
-            ]
+            return [...jobsData]
         },
 
         /**
          * Schema: Company(id: ID!): Company
          * Requires a non-null id; uses GraphQL errors with extension codes for clients/tools.
          */
-        Company: async (parent, args) => {
+        Company: async (_parent, args) => {
                 const companyId = args.id
+                // Redundant with schema `ID!` but keeps a clear error if the field is ever optional.
                 if (!args.id) {
                     throw new GraphQLError('Company Id not provided', {
                         extensions: {
@@ -77,7 +80,7 @@ const resolvers = {
          * Expose a string date for the schema’s `date` field (resolver output),
          * sourced from the row’s `createdAt` (or equivalent) on the parent job object.
          */
-        date: (parent, args, context) => {
+        date: (parent, _args, _context) => {
             return parent.createdAt
         },
 
@@ -108,6 +111,21 @@ const resolvers = {
             console.log(jobsData, "This is Jobs daa")
             const filteredJobs = jobsData.filter(el => el.companyId == parent.id)
             return [...filteredJobs]
+        }
+    },
+
+    /** Root write operations (see schema `type Mutation`). */
+    Mutation: {
+        /**
+         * Schema: createJob(title, description, companyId): Job
+         * Persists a row in `job`; `companyId` must match an existing `company.id` (SQLite FK).
+         * Resolver should return the new Job so the mutation response can be resolved (schema `Job`).
+         */
+        createJob: async (_parent, args, _context, _info) => {
+            const { title, description, companyId } = args
+            console.log("This is the send data from the request", title, description, companyId)
+            const jobCreatedData = await createJob({ companyId, title, description })
+            console.log(jobCreatedData)
         }
     }
 
