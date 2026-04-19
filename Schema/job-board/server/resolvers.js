@@ -1,23 +1,27 @@
 /**
- * GraphQL resolvers for schema.graphql:
- * - Query: root fields (greetings, Job, Jobs)
- * - Job: field resolvers when a Job object is returned (date, company)
+ * GraphQL resolvers for schema.graphql
  *
- * Matches types: Query, Job, Company (Company is resolved via Job.company).
+ * Structure:
+ * - Query     — root entry points: greetings, Job, Jobs, Company
+ * - Job       — field resolvers on Job objects (date, company)
+ * - Company   — field resolver Jobs on Company (jobs for that company)
+ *
+ * DB access: ./db/jobs.js (getJobs, getJob), ./db/companies.js (getCompany).
  */
 import { getJobs, getJob } from './db/jobs.js'
 import { getCompany } from './db/companies.js'
+import { GraphQLError } from 'graphql';
 
 const resolvers = {
     Query: {
-        /** Simple smoke-test field. */
+        /** Smoke-test string; not backed by the database. */
         greetings: () => {
             return "Hello this is the staring point"
         },
 
         /**
-         * `Job(id: ID): Job` — load one job by id from the DB.
-         * `parent` is unused on Query (always undefined).
+         * Schema: Job(id: ID): Job
+         * Loads a single job row; spreads DB fields onto the GraphQL Job type.
          */
         Job: async (parent, args) => {
             if (!args.id) {
@@ -29,54 +33,80 @@ const resolvers = {
             }
         },
 
-        /** `Jobs: [Job]` — list all jobs. */
+        /** Schema: Jobs: [Job] — all jobs, no filter. */
         Jobs: async () => {
             const jobsData = await getJobs();
             return [
                 ...jobsData,
             ]
         },
-        Company:async (parent,args)=>{
+
+        /**
+         * Schema: Company(id: ID!): Company
+         * Requires a non-null id; uses GraphQL errors with extension codes for clients/tools.
+         */
+        Company: async (parent, args) => {
                 const companyId = args.id
-                console.log("inside right resolver",companyId)
+                if (!args.id) {
+                    throw new GraphQLError('Company Id not provided', {
+                        extensions: {
+                          code: 'BAD REQUEST',
+                        },
+                      });
+                }
+                console.log("inside right resolver", companyId)
                 const companyData = await getCompany(companyId)
-                console.log(companyData)
+                if (!companyData) {
+                    throw new GraphQLError('No matched document found', {
+                        extensions: {
+                          code: 'DATABASE INVALID',
+                        },
+                      });
+                }
                 return companyData
         }
 
     },
 
     /**
-     * Field resolvers for type Job.
-     * Run when the executor needs `date` or `company` on a Job instance
-     * (e.g. returned from Query.Job / Query.Jobs or nested selection sets).
+     * Field resolvers for GraphQL type Job.
+     * Invoked when a Job object is in the result tree and the selection set asks for `date` or `company`.
      */
-    Job :{
+    Job: {
         /**
-         * Schema documents `date` as a string; map from stored `createdAt`
-         * (adjust if your DB column differs).
+         * Expose a string date for the schema’s `date` field (resolver output),
+         * sourced from the row’s `createdAt` (or equivalent) on the parent job object.
          */
-        date:(parent, args , context)=>{
+        date: (parent, args, context) => {
             return parent.createdAt
         },
 
-        /** Resolve `Job.company` by company id on the parent job row. */
-        company:async (parent)=>{
+        /** Load the Company for this job via `parent.companyId`. */
+        company: async (parent) => {
             console.log(parent.companyId)
             const companyData = await getCompany(parent.companyId)
-            console.log(companyData,"this is comapany dat")
+            console.log(companyData, "this is comapany dat")
             return {
                 ...companyData
             }
         }
 
     },
-    Company:{
-        Jobs:async (parent)=>{
+
+    /**
+     * Field resolvers for GraphQL type Company.
+     */
+    Company: {
+        /**
+         * Schema: Company.Jobs: [Job]
+         * Parent is the Company object from Query.Company (has `id`).
+         * Loads all jobs then filters to rows whose `companyId` matches the company.
+         */
+        Jobs: async (parent) => {
             console.log(parent.id)
             const jobsData = await getJobs();
-            console.log(jobsData,"This is Jobs daa")
-            const filteredJobs = jobsData.filter(el=> el.companyId == parent.id)
+            console.log(jobsData, "This is Jobs daa")
+            const filteredJobs = jobsData.filter(el => el.companyId == parent.id)
             return [...filteredJobs]
         }
     }
