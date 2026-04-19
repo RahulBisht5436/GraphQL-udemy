@@ -35,6 +35,13 @@ const resolvers = {
             return [
                 ...jobsData,
             ]
+        },
+        Company:async (parent,args)=>{
+                const companyId = args.id
+                console.log("inside right resolver",companyId)
+                const companyData = await getCompany(companyId)
+                console.log(companyData)
+                return companyData
         }
 
     },
@@ -63,6 +70,15 @@ const resolvers = {
             }
         }
 
+    },
+    Company:{
+        Jobs:async (parent)=>{
+            console.log(parent.id)
+            const jobsData = await getJobs();
+            console.log(jobsData,"This is Jobs daa")
+            const filteredJobs = jobsData.filter(el=> el.companyId == parent.id)
+            return [...filteredJobs]
+        }
     }
 
 }
