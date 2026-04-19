@@ -1,30 +1,48 @@
 /**
- * GraphQL resolvers for schema.graphql
+ * GraphQL resolvers for `schema.graphql`.
  *
- * Structure:
- * - Query     — root entry points: greetings, Job, Jobs, Company
- * - Mutation  — createJob (insert job; companyId must reference an existing company row)
- * - Job       — field resolvers on Job objects (date, company)
- * - Company   — field resolver Jobs on Company (jobs for that company)
+ * Maps schema types to implementation:
  *
- * DB access: ./db/jobs.js (getJobs, getJob, createJob), ./db/companies.js (getCompany).
+ * `type Query`
+ *   - `greetings` → static string (smoke test).
+ *   - `Job(id: ID)` → single job; `id` required at runtime.
+ *   - `Jobs` → list of all jobs.
+ *   - `Company(id: ID!)` → one company; throws `GraphQLError` if missing or not found.
+ *
+ * `type Mutation`
+ *   - `createJob(input: CreateJobInput!)` → insert job; `companyId` must exist (SQLite FK).
+ *
+ * `type Job` (field resolvers; parent is a job row/object from DB or parent selection)
+ *   - `date` → schema string date; here sourced from `parent.createdAt`.
+ *   - `company` → nested `Company` via `parent.companyId`.
+ *
+ * `type Company`
+ *   - `Jobs` → jobs whose `companyId` equals this company’s `id`.
+ *
+ * Data layer: `./db/jobs.js` (`getJobs`, `getJob`, `createJob`), `./db/companies.js` (`getCompany`).
  */
 import { getJobs, getJob, createJob } from './db/jobs.js'
 import { getCompany } from './db/companies.js'
-/** Typed errors with `extensions.code` for missing/invalid Company lookups. */
+/** Standard GraphQL error type; used for `Company` lookup failures with `extensions.code`. */
 import { GraphQLError } from 'graphql';
 
 const resolvers = {
-    /** Root read operations (see schema `type Query`). */
+    /**
+     * Root Query resolvers (`type Query` in the schema).
+     */
     Query: {
-        /** Smoke-test string; not backed by the database. */
+        /**
+         * `greetings: String`
+         * Returns a fixed greeting; does not read the database.
+         */
         greetings: () => {
             return "Hello this is the staring point"
         },
 
         /**
-         * Schema: Job(id: ID): Job
-         * Loads a single job row; spreads DB fields onto the GraphQL Job type.
+         * `Job(id: ID): Job`
+         * Fetches one job by id. Throws if `id` is missing.
+         * Return value is spread so nested selections (`date`, `company`, etc.) resolve on `Job`.
          */
         Job: async (_parent, args) => {
             if (!args.id) {
@@ -37,15 +55,20 @@ const resolvers = {
             }
         },
 
-        /** Schema: Jobs: [Job] — all jobs, no filter. */
+        /**
+         * `Jobs: [Job]`
+         * Returns every job row; no filtering or pagination.
+         */
         Jobs: async () => {
             const jobsData = await getJobs();
             return [...jobsData]
         },
 
         /**
-         * Schema: Company(id: ID!): Company
-         * Requires a non-null id; uses GraphQL errors with extension codes for clients/tools.
+         * `Company(id: ID!): Company`
+         * Loads a company by primary key. Uses `GraphQLError` + `extensions.code` for:
+         * - missing id (defensive; schema already requires `ID!`)
+         * - no row for that id
          */
         Company: async (_parent, args) => {
                 const companyId = args.id
@@ -72,19 +95,22 @@ const resolvers = {
     },
 
     /**
-     * Field resolvers for GraphQL type Job.
-     * Invoked when a Job object is in the result tree and the selection set asks for `date` or `company`.
+     * Field resolvers for GraphQL type `Job`.
+     * Run when the executor needs `date` or `company` and the parent is a `Job`-shaped object.
      */
     Job: {
         /**
-         * Expose a string date for the schema’s `date` field (resolver output),
-         * sourced from the row’s `createdAt` (or equivalent) on the parent job object.
+         * `date: String!` (schema documents this as a string date)
+         * Maps the GraphQL `date` field from the stored timestamp field on the parent (`createdAt`).
          */
         date: (parent, _args, _context) => {
             return parent.createdAt
         },
 
-        /** Load the Company for this job via `parent.companyId`. */
+        /**
+         * `company: Company`
+         * Resolves the employer for this job using `parent.companyId`.
+         */
         company: async (parent) => {
             console.log(parent.companyId)
             const companyData = await getCompany(parent.companyId)
@@ -97,13 +123,13 @@ const resolvers = {
     },
 
     /**
-     * Field resolvers for GraphQL type Company.
+     * Field resolvers for GraphQL type `Company`.
      */
     Company: {
         /**
-         * Schema: Company.Jobs: [Job]
-         * Parent is the Company object from Query.Company (has `id`).
-         * Loads all jobs then filters to rows whose `companyId` matches the company.
+         * `Jobs: [Job]`
+         * Lists jobs belonging to this company: `job.companyId === parent.id`.
+         * Implementation loads all jobs then filters in memory.
          */
         Jobs: async (parent) => {
             console.log(parent.id)
@@ -114,15 +140,17 @@ const resolvers = {
         }
     },
 
-    /** Root write operations (see schema `type Mutation`). */
+    /**
+     * Root Mutation resolvers (`type Mutation` in the schema).
+     */
     Mutation: {
         /**
-         * Schema: createJob(title, description, companyId): Job
-         * Persists a row in `job`; `companyId` must match an existing `company.id` (SQLite FK).
-         * Resolver should return the new Job so the mutation response can be resolved (schema `Job`).
+         * `createJob(input: CreateJobInput!): Job`
+         * `CreateJobInput`: `title`, optional `description`, `companyId` (must reference `company.id`).
+         * Persists via `createJob` in the jobs DB module; `companyId` is enforced as FK in SQLite.
          */
         createJob: async (_parent, args, _context, _info) => {
-            const { title, description, companyId } = args
+            const { title, description, companyId } = args.input
             console.log("This is the send data from the request", title, description, companyId)
             const jobCreatedData = await createJob({ companyId, title, description })
             console.log(jobCreatedData)
