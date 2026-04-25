@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "nodemon server.js",
-    "start:node": "node server.js"
+    "start:node": "node server.js",
+    "db:reset": "node scripts/create-db.js"
   },
   "engines": {
     "node": ">=22.5.0"

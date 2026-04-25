@@ -1,7 +1,12 @@
+""" Read-only root operations. """
 type Query{
+    """ Simple smoke-test field to verify API is reachable. """
     greetings: String
+    """ Get one job by id. """
     Job(id:ID):Job
+    """ Get all jobs. """
     Jobs :[Job]
+    """ Get one company by id. """
     Company(id:ID!):Company
 }
 
@@ -12,27 +17,44 @@ type Mutation {
     Returns the saved `Job` so clients can query `id`, `title`, nested `company`, etc.
     """
     createJob(input:CreateJobInput!): Job
+    """ Delete one job by id and return the deleted row. """
+    deleteJob(id:ID!):Job
+    """ Update title/description for a job by id and return updated data. """
+    updateJob(input:CreateJobUpdateInput!):Job
 }
+""" Job posting entity. """
 type Job {
     id:ID!
     title:String!
     description:String
-    """ this is string date refrence """
+    """ Human-readable date field backed by server resolver logic. """
     date:String!
+    """ Original ISO timestamp saved in DB. """
     createdAt:String!
+    """ Company that owns this job posting. """
     company: Company
 
 }
 
+""" Company profile and its related jobs. """
 type Company {
     id:ID!
     name : String!
     description:String
+    """ All jobs associated with this company id. """
     Jobs:[Job]
 }
 
+""" Input payload for creating a new job. """
 input CreateJobInput {
     title:String!
     description:String
     companyId:ID!
+}
+
+""" Input payload for updating an existing job. """
+input CreateJobUpdateInput{
+    title:String
+    description:String
+    id:ID!
 }

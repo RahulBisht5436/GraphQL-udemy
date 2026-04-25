@@ -19,10 +19,10 @@
  * `type Company`
  *   - `Jobs` → jobs whose `companyId` equals this company’s `id`.
  *
- * Data layer: `./db/jobs.js` (`getJobs`, `getJob`, `createJob`), `./db/companies.js` (`getCompany`).
+ * Data layer: `./db/jobs.js` and `./db/companies.js`.
  */
-import { getJobs, getJob, createJob } from './db/jobs.js'
-import { getCompany } from './db/companies.js'
+import { getJobs, getJob, deleteJob, createJob, updateJob as updateJobfunction } from './db/jobs.js';
+import { getCompany } from './db/companies.js';
 /** Standard GraphQL error type; used for `Company` lookup failures with `extensions.code`. */
 import { GraphQLError } from 'graphql';
 
@@ -80,7 +80,6 @@ const resolvers = {
                         },
                       });
                 }
-                console.log("inside right resolver", companyId)
                 const companyData = await getCompany(companyId)
                 if (!companyData) {
                     throw new GraphQLError('No matched document found', {
@@ -112,9 +111,7 @@ const resolvers = {
          * Resolves the employer for this job using `parent.companyId`.
          */
         company: async (parent) => {
-            console.log(parent.companyId)
             const companyData = await getCompany(parent.companyId)
-            console.log(companyData, "this is comapany dat")
             return {
                 ...companyData
             }
@@ -132,9 +129,8 @@ const resolvers = {
          * Implementation loads all jobs then filters in memory.
          */
         Jobs: async (parent) => {
-            console.log(parent.id)
             const jobsData = await getJobs();
-            console.log(jobsData, "This is Jobs daa")
+            // Return only the jobs that belong to the current company.
             const filteredJobs = jobsData.filter(el => el.companyId == parent.id)
             return [...filteredJobs]
         }
@@ -151,9 +147,31 @@ const resolvers = {
          */
         createJob: async (_parent, args, _context, _info) => {
             const { title, description, companyId } = args.input
-            console.log("This is the send data from the request", title, description, companyId)
             const jobCreatedData = await createJob({ companyId, title, description })
-            console.log(jobCreatedData)
+            return jobCreatedData
+        },
+        deleteJob:async (_parent,args)=>{
+            // Deletes by id and returns the deleted row.
+            const id = args.id
+            const deletedJobData= await deleteJob(id)
+            return deletedJobData
+        },
+        updateJob:async(_parent,args)=>{
+            // Reads update payload from GraphQL input object.
+            const {id,title,description}=args.input
+            if(!id){
+                throw new GraphQLError("ID is a required Field for the Updation",{
+                    extensions:{
+                        "status":400,
+                        code:"WRONG INPUT"
+                    }
+                })
+
+            }
+
+            // Applies partial updates and returns the updated record.
+            const updateJobResult = await updateJobfunction({id, title , description})
+            return updateJobResult
         }
     }
 

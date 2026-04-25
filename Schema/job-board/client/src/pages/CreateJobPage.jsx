@@ -1,12 +1,35 @@
 import { useState } from 'react';
+import { createJob } from '../../graphQL/queries';
 
 function CreateJobPage() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [feedback, setFeedback] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    console.log('should post a new job:', { title, description });
+    setFeedback(null);
+    setIsSubmitting(true);
+    try {
+      const result = await createJob(title, description);
+      const created = result.createJob;
+      setFeedback({
+        type: 'success',
+        text: created?.title
+          ? `Job "${created.title}" was created successfully.`
+          : 'Job was created successfully.',
+      });
+      setTitle('');
+      setDescription('');
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err.message || 'Failed to create the job. Please try again.',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -15,10 +38,22 @@ function CreateJobPage() {
         New Job
       </h1>
       <div className="box">
-        <form>
+        {feedback && (
+          <div
+            className={
+              feedback.type === 'success'
+                ? 'notification is-success'
+                : 'notification is-danger'
+            }
+            role="alert"
+          >
+            {feedback.text}
+          </div>
+        )}
+        <form onSubmit={handleSubmit}>
           <div className="field">
             <label className="label">
-              Title
+              Title 
             </label>
             <div className="control">
               <input className="input" type="text" value={title}
@@ -38,8 +73,12 @@ function CreateJobPage() {
           </div>
           <div className="field">
             <div className="control">
-              <button className="button is-link" onClick={handleSubmit}>
-                Submit
+              <button
+                className="button is-link"
+                type="submit"
+                disabled={isSubmitting}
+              >
+                {isSubmitting ? 'Submitting…' : 'Submit'}
               </button>
             </div>
           </div>
