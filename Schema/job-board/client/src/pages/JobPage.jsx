@@ -4,6 +4,7 @@ import { formatDate } from '../lib/formatters';
 import { deleteJob, getJobData } from '../../graphQL/queries';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { getGraphQLErrorInfo } from '../lib/graphqlError';
 
 function JobPage() {
   const { jobId } = useParams();
@@ -39,9 +40,12 @@ function JobPage() {
       await deleteJob(jobId);
       navigate('/');
     } catch (err) {
+      const info = getGraphQLErrorInfo(err);
       setFeedback({
         type: 'error',
-        text: err.message || 'Failed to delete the job. Please try again.',
+        title: info.title,
+        text: info.text,
+        needsLogin: info.needsLogin,
       });
     } finally {
       setIsDeleting(false);
@@ -66,8 +70,27 @@ function JobPage() {
       </h2>
       <div className="box">
         {feedback && (
-          <div className="notification is-danger" role="alert">
-            {feedback.text}
+          <div
+            className="notification is-danger is-light"
+            role="alert"
+            aria-live="polite"
+          >
+            {feedback.title && (
+              <p className="title is-5 mb-2 has-text-weight-semibold">
+                {feedback.title}
+              </p>
+            )}
+            <p>{feedback.text}</p>
+            {feedback.type === 'error' && feedback.needsLogin && (
+              <p className="mt-3">
+                <Link
+                  to="/login"
+                  className="button is-link is-outlined is-small"
+                >
+                  Go to sign in
+                </Link>
+              </p>
+            )}
           </div>
         )}
         <div className="block has-text-grey">

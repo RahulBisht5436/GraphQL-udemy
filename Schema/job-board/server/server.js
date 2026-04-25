@@ -5,6 +5,7 @@ import { expressMiddleware as apolloMiddleware } from '@as-integrations/express4
 import { authMiddleware, handleLogin } from './auth.js';
 import { readFile } from 'node:fs/promises'
 import resolvers from './resolvers.js';
+import { getUser } from './db/users.js';
 
 const PORT = 9000;
 
@@ -20,14 +21,16 @@ const typeDefs = await readFile('./schema.graphql', 'utf8')
 const apolloServer = new ApolloServer({
   typeDefs, resolvers
 })
-function getContext({req}) {
-  // Expose auth info to resolvers through GraphQL context.
-  // Resolvers read this as `context.authorization`.
-  return {
-    authorization:{
-      ...req.auth
-    }
+/**
+ * Per-request context for resolvers. With `express-jwt` and `credentialsRequired: false`,
+ * `req.auth` is undefined when the client sends no/invalid token — never read `sub` blindly.
+ */
+async function getContext({ req }) {
+  if (!req.auth?.sub) {
+    return { userDetails: null };
   }
+  const userDetails = await getUser(req.auth.sub);
+  return { userDetails: userDetails ? { ...userDetails } : null };
 }
 
 

@@ -53,7 +53,9 @@ export async function updateJob({ id, title, description }) {
   if (!job) {
     throw new Error(`Job not found: ${id}`);
   }
-  const updatedFields = { title, description };
-  update.run(title, description, id);
-  return { ...job, ...updatedFields };
+  const nextTitle = title !== undefined && title !== null ? title : job.title;
+  const nextDescription =
+    description !== undefined && description !== null ? description : job.description;
+  update.run(nextTitle, nextDescription, id);
+  return { ...job, title: nextTitle, description: nextDescription };
 }

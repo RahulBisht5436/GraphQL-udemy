@@ -21,10 +21,43 @@
  *
  * Data layer: `./db/jobs.js` and `./db/companies.js`.
  */
-import { getJobs, getJob, deleteJob, createJob, updateJob as updateJobfunction } from './db/jobs.js';
+import {
+  getJobs,
+  getJob,
+  deleteJob as deleteJobRecord,
+  createJob,
+  updateJob as updateJobRecord,
+} from './db/jobs.js';
 import { getCompany } from './db/companies.js';
 /** Standard GraphQL error type; used for `Company` lookup failures with `extensions.code`. */
 import { GraphQLError } from 'graphql';
+
+/** Requires a logged-in user; throws UNAUTHENTICATED. */
+function requireUser(context) {
+  if (!context.userDetails) {
+    throw new GraphQLError('Authentication required', {
+      extensions: { code: 'UNAUTHENTICATED' },
+    });
+  }
+  return context.userDetails;
+}
+
+/**
+ * Only users whose `companyId` matches the job's can update or delete it.
+ * Unauthenticated users get UNAUTHENTICATED (no job-id probing before login).
+ */
+function assertUserOwnsJob(context, job) {
+  const user = requireUser(context);
+  if (!job) {
+    throw new GraphQLError('Job not found', { extensions: { code: 'NOT_FOUND' } });
+  }
+  if (user.companyId !== job.companyId) {
+    throw new GraphQLError('You can only change jobs that belong to your company', {
+      extensions: { code: 'FORBIDDEN' },
+    });
+  }
+  return user;
+}
 
 const resolvers = {
     /**
@@ -145,46 +178,31 @@ const resolvers = {
          * `CreateJobInput`: `title`, optional `description`, `companyId` (must reference `company.id`).
          * Persists via `createJob` in the jobs DB module; `companyId` is enforced as FK in SQLite.
          */
-        createJob: async (_parent, args, _context, _info) => {
-            const { title, description, companyId } = args.input
-            const jobCreatedData = await createJob({ companyId, title, description })
-            return jobCreatedData
+        createJob: async (_parent, args, context) => {
+            const user = requireUser(context);
+            const { title, description } = args.input;
+            // Ignore client-supplied company: always the authenticated user's company.
+            const companyId = user.companyId;
+            return createJob({ companyId, title, description });
         },
-        deleteJob:async (_parent,args)=>{
-            // Deletes by id and returns the deleted row.
-            const id = args.id
-            const deletedJobData= await deleteJob(id)
-            return deletedJobData
+        deleteJob: async (_parent, args, context) => {
+            const id = args.id;
+            const job = await getJob(id);
+            assertUserOwnsJob(context, job);
+            return deleteJobRecord(id);
         },
-        updateJob:async(_parent,args,context)=>{
-            // Authorization check: update is allowed only for authenticated users.
-            // Expected shape: `context.authorization.sub` contains the user identifier.
-            if(!context.authorization.sub){
-                throw new GraphQLError("Not authorized to preform action",{
-                    extensions:{
-                        code:"UNAUTHENICATED",
-                        status:401
-                    }
-
-                })
+        updateJob: async (_parent, args, context) => {
+            const { title, description } = args.input;
+            const id = args.input.id;
+            if (!id) {
+                throw new GraphQLError('id is required to update a job', {
+                    extensions: { code: 'BAD_USER_INPUT' },
+                });
             }
-            // Reads the update payload from GraphQL input.
-            // `id` identifies the target job; other fields are optional updates.
-            const {id,title,description}=args.input
-            if(!id){
-                throw new GraphQLError("ID is a required Field for the Updation",{
-                    extensions:{
-                        "status":400,
-                        code:"WRONG INPUT"
-                    }
-                })
-
-            }
-
-            // Persists changes in the DB layer and returns updated job data.
-            const updateJobResult = await updateJobfunction({id, title , description})
-            return updateJobResult
-        }
+            const job = await getJob(id);
+            assertUserOwnsJob(context, job);
+            return updateJobRecord({ id, title, description });
+        },
     }
 
 }

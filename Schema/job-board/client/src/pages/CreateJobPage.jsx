@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { createJob } from '../../graphQL/queries';
+import { getGraphQLErrorInfo } from '../lib/graphqlError';
 
 function CreateJobPage() {
   const [title, setTitle] = useState('');
@@ -23,9 +25,12 @@ function CreateJobPage() {
       setTitle('');
       setDescription('');
     } catch (err) {
+      const info = getGraphQLErrorInfo(err);
       setFeedback({
         type: 'error',
-        text: err.message || 'Failed to create the job. Please try again.',
+        title: info.title,
+        text: info.text,
+        needsLogin: info.needsLogin,
       });
     } finally {
       setIsSubmitting(false);
@@ -43,11 +48,27 @@ function CreateJobPage() {
             className={
               feedback.type === 'success'
                 ? 'notification is-success'
-                : 'notification is-danger'
+                : 'notification is-danger is-light'
             }
             role="alert"
+            aria-live="polite"
           >
-            {feedback.text}
+            {feedback.type === 'error' && feedback.title && (
+              <p className="title is-5 mb-2 has-text-weight-semibold">
+                {feedback.title}
+              </p>
+            )}
+            <p>{feedback.text}</p>
+            {feedback.type === 'error' && feedback.needsLogin && (
+              <p className="mt-3">
+                <Link
+                  to="/login"
+                  className="button is-link is-outlined is-small"
+                >
+                  Go to sign in
+                </Link>
+              </p>
+            )}
           </div>
         )}
         <form onSubmit={handleSubmit}>
