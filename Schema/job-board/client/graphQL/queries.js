@@ -1,14 +1,7 @@
 import { GraphQLClient, gql } from 'graphql-request';
-import { getAccessToken } from '../src/lib/auth.js';
 
 const endpoint = import.meta.env.VITE_GRAPHQL_ENDPOINT;
 const client = new GraphQLClient(endpoint);
-
-/** Merges login JWT for mutations; public queries work with no token. */
-function requestHeaders() {
-  const token = getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : undefined;
-}
 
 export async function getJobs() {
   const query = gql`
@@ -27,7 +20,7 @@ export async function getJobs() {
     }
   `;
 
-  const apiData = await client.request(query, {}, requestHeaders());
+  const apiData = await client.request(query);
   return apiData.Jobs;
 }
 
@@ -48,11 +41,9 @@ export async function getJobData(id_job) {
   }
 }
     `
-  const apiData = await client.request(
-    query,
-    { id: id_job },
-    requestHeaders(),
-  );
+  const apiData = await client.request(query, {
+    id: id_job
+  })
   console.log(apiData)
   return apiData.Job
 }
@@ -78,11 +69,7 @@ export async function getCompanyData(companyId) {
   }
 
 
-  const companiesGraphql = await client.request(
-    companyData,
-    variables,
-    requestHeaders(),
-  );
+  const companiesGraphql = await client.request(companyData, variables);
   return companiesGraphql.Company;
 
 }
@@ -107,11 +94,7 @@ export async function createJob(title, description, companyId = "FjcJCHJALA4i") 
     }
   }
 
-  const result = await client.request(
-    createJobQuery,
-    createJobQueryVariables,
-    requestHeaders(),
-  );
+  const result = await client.request(createJobQuery,createJobQueryVariables)
   console.log("This has been successfully executed")
   console.log(result)
   return result
@@ -134,10 +117,6 @@ export async function deleteJob(jobId) {
     id: jobId,
   };
 
-  const result = await client.request(
-    deleteJobMutation,
-    variables,
-    requestHeaders(),
-  );
+  const result = await client.request(deleteJobMutation, variables);
   return result.deleteJob;
 }
