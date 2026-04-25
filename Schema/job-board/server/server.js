@@ -20,14 +20,27 @@ const typeDefs = await readFile('./schema.graphql', 'utf8')
 const apolloServer = new ApolloServer({
   typeDefs, resolvers
 })
+function getContext({req}) {
+  // Expose auth info to resolvers through GraphQL context.
+  // Resolvers read this as `context.authorization`.
+  return {
+    authorization:{
+      ...req.auth
+    }
+  }
+}
+
+
 
 // Required before expressMiddleware can handle requests
 await apolloServer.start()
 
 // Pass the server instance — expressMiddleware(apolloServer) returns the Express handler
-app.use('/graphql', apolloMiddleware(apolloServer))
+app.use('/graphql', apolloMiddleware(apolloServer, {
+  context: getContext
+}))
 
 
 app.listen({ port: PORT }, () => {
-  console.log(`Server running on port ${PORT}`);
+  // Server startup callback intentionally left silent.
 });

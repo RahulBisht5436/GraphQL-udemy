@@ -156,8 +156,20 @@ const resolvers = {
             const deletedJobData= await deleteJob(id)
             return deletedJobData
         },
-        updateJob:async(_parent,args)=>{
-            // Reads update payload from GraphQL input object.
+        updateJob:async(_parent,args,context)=>{
+            // Authorization check: update is allowed only for authenticated users.
+            // Expected shape: `context.authorization.sub` contains the user identifier.
+            if(!context.authorization.sub){
+                throw new GraphQLError("Not authorized to preform action",{
+                    extensions:{
+                        code:"UNAUTHENICATED",
+                        status:401
+                    }
+
+                })
+            }
+            // Reads the update payload from GraphQL input.
+            // `id` identifies the target job; other fields are optional updates.
             const {id,title,description}=args.input
             if(!id){
                 throw new GraphQLError("ID is a required Field for the Updation",{
@@ -169,7 +181,7 @@ const resolvers = {
 
             }
 
-            // Applies partial updates and returns the updated record.
+            // Persists changes in the DB layer and returns updated job data.
             const updateJobResult = await updateJobfunction({id, title , description})
             return updateJobResult
         }
