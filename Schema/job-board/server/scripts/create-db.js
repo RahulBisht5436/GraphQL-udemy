@@ -1,84 +1,83 @@
-import { connection } from '../db/connection.js';
+import { db } from "../db/connection.js";
 
-const { schema } = connection;
+db.exec('DROP TABLE IF EXISTS "user";');
+db.exec("DROP TABLE IF EXISTS job;");
+db.exec("DROP TABLE IF EXISTS company;");
 
-await schema.dropTableIfExists('user');
-await schema.dropTableIfExists('job');
-await schema.dropTableIfExists('company');
+db.exec(`CREATE TABLE company (
+  id TEXT NOT NULL PRIMARY KEY,
+  name TEXT NOT NULL,
+  description TEXT
+);`);
 
-await schema.createTable('company', (table) => {
-  table.text('id').notNullable().primary();
-  table.text('name').notNullable();
-  table.text('description');
-});
+db.exec(`CREATE TABLE job (
+  id TEXT NOT NULL PRIMARY KEY,
+  companyId TEXT NOT NULL REFERENCES company (id),
+  title TEXT NOT NULL,
+  description TEXT,
+  createdAt TEXT NOT NULL
+);`);
 
-await schema.createTable('job', (table) => {
-  table.text('id').notNullable().primary();
-  table.text('companyId').notNullable()
-    .references('id').inTable('company');
-  table.text('title').notNullable();
-  table.text('description');
-  table.text('createdAt').notNullable();
-});
+db.exec(`CREATE TABLE "user" (
+  id TEXT NOT NULL PRIMARY KEY,
+  companyId TEXT NOT NULL REFERENCES company (id),
+  email TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL
+);`);
 
-await schema.createTable('user', (table) => {
-  table.text('id').notNullable().primary();
-  table.text('companyId').notNullable()
-    .references('id').inTable('company');
-  table.text('email').notNullable().unique();
-  table.text('password').notNullable();
-});
+const insertCompany = db.prepare(
+  "INSERT INTO company (id, name, description) VALUES (?, ?, ?)"
+);
+insertCompany.run(
+  "FjcJCHJALA4i",
+  "Facegle",
+  "We are a startup on a mission to disrupt social search engines. Think Facebook meet Google."
+);
+insertCompany.run(
+  "Gu7QW9LcnF5d",
+  "Goobook",
+  "We are a startup on a mission to disrupt search social media. Think Google meet Facebook."
+);
 
-await connection.table('company').insert([
-  {
-    id: 'FjcJCHJALA4i',
-    name: 'Facegle',
-    description: 'We are a startup on a mission to disrupt social search engines. Think Facebook meet Google.',
-  },
-  {
-    id: 'Gu7QW9LcnF5d',
-    name: 'Goobook',
-    description: 'We are a startup on a mission to disrupt search social media. Think Google meet Facebook.',
-  },
-]);
+const insertJob = db.prepare(
+  "INSERT INTO job (id, companyId, title, description, createdAt) VALUES (?, ?, ?, ?, ?)"
+);
+insertJob.run(
+  "f3YzmnBZpK0o",
+  "FjcJCHJALA4i",
+  "Frontend Developer",
+  "We are looking for a Frontend Developer familiar with React.",
+  "2025-01-26T11:00:00.000Z"
+);
+insertJob.run(
+  "XYZNJMXFax6n",
+  "FjcJCHJALA4i",
+  "Backend Developer",
+  "We are looking for a Backend Developer familiar with Node.js and Express.",
+  "2025-01-27T11:00:00.000Z"
+);
+insertJob.run(
+  "6mA05AZxvS1R",
+  "Gu7QW9LcnF5d",
+  "Full-Stack Developer",
+  "We are looking for a Full-Stack Developer familiar with Node.js, Express, and React.",
+  "2025-01-30T11:00:00.000Z"
+);
 
-await connection.table('job').insert([
-  {
-    id: 'f3YzmnBZpK0o',
-    companyId: 'FjcJCHJALA4i',
-    title: 'Frontend Developer',
-    description: 'We are looking for a Frontend Developer familiar with React.',
-    createdAt: '2025-01-26T11:00:00.000Z',
-  },
-  {
-    id: 'XYZNJMXFax6n',
-    companyId: 'FjcJCHJALA4i',
-    title: 'Backend Developer',
-    description: 'We are looking for a Backend Developer familiar with Node.js and Express.',
-    createdAt: '2025-01-27T11:00:00.000Z',
-  },
-  {
-    id: '6mA05AZxvS1R',
-    companyId: 'Gu7QW9LcnF5d',
-    title: 'Full-Stack Developer',
-    description: 'We are looking for a Full-Stack Developer familiar with Node.js, Express, and React.',
-    createdAt: '2025-01-30T11:00:00.000Z',
-  },
-]);
+const insertUser = db.prepare(
+  'INSERT INTO "user" (id, companyId, email, password) VALUES (?, ?, ?, ?)'
+);
+insertUser.run(
+  "AcMJpL7b413Z",
+  "FjcJCHJALA4i",
+  "alice@facegle.io",
+  "alice123"
+);
+insertUser.run(
+  "BvBNW636Z89L",
+  "Gu7QW9LcnF5d",
+  "bob@goobook.co",
+  "bob123"
+);
 
-await connection.table('user').insert([
-  {
-    id: 'AcMJpL7b413Z',
-    companyId: 'FjcJCHJALA4i',
-    email: 'alice@facegle.io',
-    password: 'alice123',
-  },
-  {
-    id: 'BvBNW636Z89L',
-    companyId: 'Gu7QW9LcnF5d',
-    email: 'bob@goobook.co',
-    password: 'bob123',
-  },
-]);
-
-process.exit();
+process.exit(0);

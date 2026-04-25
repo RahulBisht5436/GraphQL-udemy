@@ -1,11 +1,13 @@
-import { connection } from './connection.js';
+import { db } from "./connection.js";
 
-const getUserTable = () => connection.table('user');
+// `user` is quoted — reserved word in SQLite
+const selectById = db.prepare('SELECT * FROM "user" WHERE id = ?');
+const selectByEmail = db.prepare('SELECT * FROM "user" WHERE email = ?');
 
 export async function getUser(id) {
-  return await getUserTable().first().where({ id });
+  return selectById.get(id);
 }
 
 export async function getUserByEmail(email) {
-  return await getUserTable().first().where({ email });
+  return selectByEmail.get(email);
 }

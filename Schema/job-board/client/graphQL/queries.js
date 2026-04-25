@@ -14,6 +14,7 @@ export async function getJobs() {
         createdAt
         company {
           id
+          name
         }
       }
     }
@@ -71,4 +72,10 @@ export async function getCompanyData(companyId) {
     const companiesGraphql = await client.request(companyData, variables);
     return companiesGraphql.Company;
 
+}
+
+export async function createJob(title,description,companyId="FjcJCHJALA4i"){
+
+  // Here we need to add the logic for the Job creation 
+  
 }

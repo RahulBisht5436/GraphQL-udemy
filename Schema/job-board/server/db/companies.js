@@ -1,8 +1,7 @@
-import { connection } from './connection.js';
+import { db } from "./connection.js";
 
-const getCompanyTable = () => connection.table('company');
+const selectById = db.prepare("SELECT * FROM company WHERE id = ?");
 
 export async function getCompany(id) {
-  // console.log("inside the id ",id)
-  return await getCompanyTable().first().where({ id });
+  return selectById.get(id);
 }

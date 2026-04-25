@@ -1,18 +1,27 @@
-import { connection } from './connection.js';
-import { generateId } from './ids.js';
+import { db } from "./connection.js";
+import { generateId } from "./ids.js";
 
-const getJobTable = () => connection.table('job');
+const selectAll = db.prepare("SELECT * FROM job");
+const selectById = db.prepare("SELECT * FROM job WHERE id = ?");
+const insert = db.prepare(`
+  INSERT INTO job (id, companyId, title, description, createdAt)
+  VALUES (?, ?, ?, ?, ?)
+`);
+const deleteById = db.prepare("DELETE FROM job WHERE id = ?");
+const update = db.prepare(
+  "UPDATE job SET title = ?, description = ? WHERE id = ?"
+);
 
 export async function getJobs() {
-  return await getJobTable().select();
+  return selectAll.all();
 }
 
 export async function getJob(id) {
-  return await getJobTable().first().where({ id });
+  return selectById.get(id);
 }
 
 export async function createJob({ companyId, title, description }) {
-  console.log("right function executed",companyId , description ,title)
+  console.log("right function executed", companyId, description, title);
   const job = {
     id: generateId(),
     companyId,
@@ -20,25 +29,31 @@ export async function createJob({ companyId, title, description }) {
     description,
     createdAt: new Date().toISOString(),
   };
-  await getJobTable().insert(job);
+  insert.run(
+    job.id,
+    job.companyId,
+    job.title,
+    job.description,
+    job.createdAt
+  );
   return job;
 }
 
 export async function deleteJob(id) {
-  const job = await getJobTable().first().where({ id });
+  const job = selectById.get(id);
   if (!job) {
     throw new Error(`Job not found: ${id}`);
   }
-  await getJobTable().delete().where({ id });
+  deleteById.run(id);
   return job;
 }
 
 export async function updateJob({ id, title, description }) {
-  const job = await getJobTable().first().where({ id });
+  const job = selectById.get(id);
   if (!job) {
     throw new Error(`Job not found: ${id}`);
   }
   const updatedFields = { title, description };
-  await getJobTable().update(updatedFields).where({ id });
+  update.run(title, description, id);
   return { ...job, ...updatedFields };
 }
