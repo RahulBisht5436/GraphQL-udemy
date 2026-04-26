@@ -1,19 +1,44 @@
+// New job form: `createJob` via shared `useCreateJob()` (see `graphQL/hooks.js`).
+
 import { useState } from 'react';
-import { createJob } from '../../graphQL/queries';
+import { useCreateJob } from '../../graphQL/hooks.js';
+
+// Server expects a `companyId` on `CreateJobInput`; same default as in `queries.js`’s `createJob()`.
+const DEFAULT_COMPANY_ID = 'FjcJCHJALA4i';
 
 function CreateJobPage() {
+  // Form fields (controlled inputs).
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  // Success or error message shown above the form (`{ type, text }` or `null` when hidden).
   const [feedback, setFeedback] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { mutateCreateJob, loading } = useCreateJob();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    if (loading) return;
+
     setFeedback(null);
-    setIsSubmitting(true);
+
     try {
-      const result = await createJob(title, description);
-      const created = result.createJob;
+      // `variables` must match the operation: `mutation ($input: CreateJobInput!)` → `variables: { input: { ... } }`.
+      const { data, errors } = await mutateCreateJob({
+        variables: {
+          input: {
+            title,
+            description,
+            companyId: DEFAULT_COMPANY_ID,
+          },
+        },
+      });
+
+      // GraphQL can return 200 with partial errors in `errors` while `data` is null/omitted.
+      if (errors?.length) {
+        throw new Error(errors.map((e) => e.message).join(', '));
+      }
+
+      const created = data?.createJob;
       setFeedback({
         type: 'success',
         text: created?.title
@@ -23,20 +48,17 @@ function CreateJobPage() {
       setTitle('');
       setDescription('');
     } catch (err) {
+      // Network failures or thrown `Error` from `errors` above.
       setFeedback({
         type: 'error',
         text: err.message || 'Failed to create the job. Please try again.',
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   return (
     <div>
-      <h1 className="title">
-        New Job
-      </h1>
+      <h1 className="title">New Job</h1>
       <div className="box">
         {feedback && (
           <div
@@ -52,22 +74,30 @@ function CreateJobPage() {
         )}
         <form onSubmit={handleSubmit}>
           <div className="field">
-            <label className="label">
-              Title 
+            <label className="label" htmlFor="create-job-title">
+              Title
             </label>
             <div className="control">
-              <input className="input" type="text" value={title}
-                onChange={(event) => setTitle(event.target.value)}
+              <input
+                id="create-job-title"
+                className="input"
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </div>
           </div>
           <div className="field">
-            <label className="label">
+            <label className="label" htmlFor="create-job-description">
               Description
             </label>
             <div className="control">
-              <textarea className="textarea" rows={10} value={description}
-                onChange={(event) => setDescription(event.target.value)}
+              <textarea
+                id="create-job-description"
+                className="textarea"
+                rows={10}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
             </div>
           </div>
@@ -76,9 +106,9 @@ function CreateJobPage() {
               <button
                 className="button is-link"
                 type="submit"
-                disabled={isSubmitting}
+                disabled={loading}
               >
-                {isSubmitting ? 'Submitting…' : 'Submit'}
+                {loading ? 'Submitting…' : 'Submit'}
               </button>
             </div>
           </div>

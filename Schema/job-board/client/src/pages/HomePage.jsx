@@ -1,25 +1,35 @@
-import JobList from '../components/JobList';
-import { jobs } from '../lib/fake-data';
-import { getJobs } from '../../graphQL/queries';
-import { useEffect, useState } from 'react';
+// Job board home: all jobs from GraphQL.
 
+import JobList from '../components/JobList';
+import { useJobs } from '../../graphQL/hooks.js';
 
 function HomePage() {
-  const [jobsData, setJobsData]=useState([...jobs])
-  useEffect(()=>{
-      async function getJobsFunction() {
-        const newJobsData = await getJobs()
-        setJobsData(newJobsData)
-      }
-      getJobsFunction()
-  },[])
-  
-  // console.log(jobsData)
-  // console.log(jobs)
+  const { jobs, loading, error } = useJobs();
+
+  if (loading) {
+    return (
+      <div>
+        <h1 className="title">Job Board</h1>
+        <p className="has-text-grey">Loading…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div>
+        <h1 className="title">Job Board</h1>
+        <div className="notification is-danger">
+          Could not load jobs: {error.message}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <h1 className="title">Job Board</h1>
-      <JobList jobs={jobsData} />
+      <JobList jobs={jobs} />
     </div>
   );
 }

@@ -17,63 +17,62 @@ const authLink = new SetContextLink((prevContext) => {
   };
 });
 
-const apolloClient = new ApolloClient({
+export const apolloClient = new ApolloClient({
   link: authLink.concat(httpLink),
   cache: new InMemoryCache(),
 });
 
-// Fetches the full job list with nested company (id + name).
-export async function getJobs() {
-  const query = gql`
-    query {
-      Jobs {
+export const jobsQuery = gql`
+  query {
+    Jobs {
+      id
+      title
+      description
+      date
+      createdAt
+      company {
         id
-        title
-        description
-        date
-        createdAt
-        company {
-          id
-          name
-        }
+        name
       }
     }
-  `;
+  }
+`;
 
+// Fetches the full job list with nested company (id + name).
+export async function getJobs() {
   const { data } = await apolloClient.query({
-    query,
+    query: jobsQuery,
     fetchPolicy: 'cache-first'
   });
   return data.Jobs;
 }
 
-// Loads one job by GraphQL ID. Returns the single `Job` object.
-export async function getJobData(id_job) {
-  const query = gql`
-    query ($id: ID!) {
-      Job(id: $id) {
-        title
-        description
+export const jobData = gql`
+  query ($id: ID!) {
+    Job(id: $id) {
+      title
+      description
+      id
+      date
+      company {
+        name
         id
-        date
-        company {
-          name
-          id
-        }
       }
     }
-  `;
+  }
+`;
+
+// Loads one job by GraphQL ID. Returns the single `Job` object.
+export async function getJobData(id_job) {
   const { data } = await apolloClient.query({
-    query,
+    query: jobData,
     variables: { id: id_job },
     fetchPolicy: 'cache-first'
   });
   return data.Job;
 }
 
-// Loads one company and its nested `Jobs` list.
-export async function getCompanyData(companyId) {
-  const companyData = gql`
+export const companyData = gql`
     query ($id: ID!) {
       Company(id: $id) {
         id
@@ -87,7 +86,11 @@ export async function getCompanyData(companyId) {
         }
       }
     }
-  `;
+  `; 
+
+// Loads one company and its nested `Jobs` list.
+export async function getCompanyData(companyId) {
+  
   const variables = { id: companyId };
 
   const { data } = await apolloClient.query({
@@ -98,20 +101,21 @@ export async function getCompanyData(companyId) {
   return data.Company;
 }
 
+export const createJobQuery = gql`
+mutation ($input: CreateJobInput!) {
+  createJob(input: $input) {
+    createdAt
+    title
+  }
+}
+`;
 // createJob: returns mutation `data` (CreateJobPage reads `result.createJob`).
 export async function createJob(
   title,
   description,
   companyId = 'FjcJCHJALA4i'
 ) {
-  const createJobQuery = gql`
-    mutation ($input: CreateJobInput!) {
-      createJob(input: $input) {
-        createdAt
-        title
-      }
-    }
-  `;
+ 
 
   const variables = {
     input: {

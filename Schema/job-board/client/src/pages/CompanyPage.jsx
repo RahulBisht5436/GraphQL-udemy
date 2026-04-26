@@ -1,44 +1,44 @@
+// Company detail: name, description, and nested job list (GraphQL `Company` + `Jobs`).
+
 import { useParams } from 'react-router';
-import { useEffect, useState } from 'react';
-import { getCompanyData } from '../../graphQL/queries';
 import JobList from '../components/JobList';
+import { useCompanyData } from '../../graphQL/hooks.js';
 
 function CompanyPage() {
   const { companyId } = useParams();
-  const [companyData, setCompanyData] = useState(null);
 
-  useEffect(() => {
-    if (!companyId) return;
+  // Must run unconditionally (Rules of Hooks). `useCompanyData` skips the network request when `id` is falsy.
+  const { data: company, loading, error } = useCompanyData(companyId);
 
-    let cancelled = false;
+  if (!companyId) {
+    return <p className="has-text-grey">Invalid company link.</p>;
+  }
 
-    async function loadCompany() {
-      const companyFetchData = await getCompanyData(companyId);
-      if (!cancelled) {
-        setCompanyData(companyFetchData);
-      }
-    }
+  if (loading) {
+    return <h1 className="title">Loading…</h1>;
+  }
 
-    loadCompany();
+  if (error) {
+    return (
+      <div className="notification is-danger">
+        Could not load company: {error.message}
+      </div>
+    );
+  }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [companyId]);
+  // Query succeeded but the server returned no company for this id.
+  if (!company) {
+    return <p className="has-text-grey">Company not found.</p>;
+  }
 
-  // const company = companies.find((company) => company.id === companyId);
   return (
     <div>
-      <h1 className="title">
-        {companyData?.name ? companyData.name : "Loading"}
-      </h1>
-      <div className="box">
-        {companyData?.description ? companyData.description : "Loading"}
-      </div>
+      <h1 className="title">{company.name}</h1>
+      <div className="box">{company.description}</div>
       <div className="job-listing">
         <h3 className="title is-4">Job listings</h3>
-        {!companyData ? null : companyData.Jobs?.length ? (
-          <JobList jobs={companyData.Jobs} />
+        {company.Jobs?.length ? (
+          <JobList jobs={company.Jobs} />
         ) : (
           <p className="has-text-grey">No jobs for this company yet.</p>
         )}
