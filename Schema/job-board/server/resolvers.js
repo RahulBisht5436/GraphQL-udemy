@@ -28,7 +28,7 @@ import {
   createJob,
   updateJob as updateJobRecord,
 } from './db/jobs.js';
-import { getCompany } from './db/companies.js';
+import { companyLoader, getCompany } from './db/companies.js';
 /** Standard GraphQL error type; used for `Company` lookup failures with `extensions.code`. */
 import { GraphQLError } from 'graphql';
 
@@ -144,7 +144,7 @@ const resolvers = {
          * Resolves the employer for this job using `parent.companyId`.
          */
         company: async (parent) => {
-            const companyData = await getCompany(parent.companyId)
+            const companyData = companyLoader.load(parent.companyId)
             return {
                 ...companyData
             }
