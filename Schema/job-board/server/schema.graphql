@@ -5,7 +5,7 @@ type Query{
     """ Get one job by id. """
     Job(id:ID):Job
     """ Get all jobs. """
-    Jobs :[Job]
+    Jobs(limit:Int) :[Job]
     """ Get one company by id. """
     Company(id:ID!):Company
 }

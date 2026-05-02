@@ -24,7 +24,7 @@ function getCompaniesByIds(ids) {
     `SELECT * FROM company WHERE id IN (${placeholders})`
   );
   const rows = selectMany.all(...uniqueIds);
-  return ids.map((id) => rows.find((row) => row.id === id) ?? null);
+  return ids.map((id) => rows.find((row) => String(row.id) === String(id)) ?? null);
 }
 
 /**

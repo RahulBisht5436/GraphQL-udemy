@@ -92,9 +92,9 @@ const resolvers = {
          * `Jobs: [Job]`
          * Returns every job row; no filtering or pagination.
          */
-        Jobs: async () => {
-            const jobsData = await getJobs();
-            return [...jobsData]
+        Jobs: async (_parent, args) => {
+            const jobsData = await getJobs(args.limit);
+            return [...jobsData];
         },
 
         /**
@@ -140,14 +140,18 @@ const resolvers = {
         },
 
         /**
-         * `company: Company`
-         * Resolves the employer for this job using `parent.companyId`.
+         * `company: Company` (nullable)
+         * Resolves the employer via DataLoader. Must `await` `load()` — it returns a Promise.
          */
         company: async (parent) => {
-            const companyData = companyLoader.load(parent.companyId)
-            return {
-                ...companyData
+            if (parent.companyId == null) {
+                return null;
             }
+            const companyData = await companyLoader.load(parent.companyId);
+            if (companyData == null) {
+                return null;
+            }
+            return companyData;
         }
 
     },

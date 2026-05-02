@@ -31,10 +31,12 @@ export function useJobData(id) {
   };
 }
 
-// Full job list with nested company (home page).
-export function useJobs() {
+// Full job list with nested company (home page). Omit `limit` for no server cap; pass a number to paginate.
+export function useJobs(limit) {
+  console.log("correct Limit passed",limit)
   const { loading, error, data } = useQuery(jobsQuery, {
     fetchPolicy: 'cache-first',
+    variables: { limit: limit ?? null },
   });
   return {
     jobs: data?.Jobs ?? [],

@@ -23,8 +23,8 @@ export const apolloClient = new ApolloClient({
 });
 
 export const jobsQuery = gql`
-  query {
-    Jobs {
+  query JobsList($limit: Int = null) {
+    Jobs(limit: $limit) {
       id
       title
       description
@@ -38,11 +38,13 @@ export const jobsQuery = gql`
   }
 `;
 
-// Fetches the full job list with nested company (id + name).
-export async function getJobs() {
+// Fetches jobs with optional server-side limit (omit for full list).
+export async function getJobs(limit) {
+  console.log("correct limit passed", limit)
   const { data } = await apolloClient.query({
     query: jobsQuery,
-    fetchPolicy: 'cache-first'
+    variables: { limit: limit ?? null },
+    fetchPolicy: 'cache-first',
   });
   return data.Jobs;
 }

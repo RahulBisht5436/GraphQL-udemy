@@ -4,7 +4,7 @@ import JobList from '../components/JobList';
 import { useJobs } from '../../graphQL/hooks.js';
 
 function HomePage() {
-  const { jobs, loading, error } = useJobs();
+  const { jobs, loading, error } = useJobs(10);
 
   if (loading) {
     return (
